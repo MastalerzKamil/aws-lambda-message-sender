@@ -1,0 +1,12 @@
+{
+  "name": "aws-lambda-message-sender",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:kamil-mastalerz-netguru/aws-lambda-message-sender.git",
+  "author": "Kamil Mastalerz <kamil.mastalerz@netguru.com>",
+  "license": "MIT",
+  "dependencies": {
+    "request": "^2.88.2",
+    "request-promise-native": "^1.0.9"
+  }
+}
