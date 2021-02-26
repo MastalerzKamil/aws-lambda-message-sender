@@ -1,54 +1,36 @@
-'use strict';
-const request = require('request-promise-native')
+const Messenger = require('./messenger.js');
 
-module.exports.hello = async (context, event, callback) => {
-  const { ACCOUNT_SID, AUTH_TOKEN, SEND_SMS_FROM, SEND_SMS_TO } = process.env;
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioClient = require('twilio')(twilioAccountSid, twilioAuthToken); // eslint-disable-line
 
-  const requestBody = event.body;
+module.exports.sendText = (event, context, callback) => {
+  const messenger = new Messenger(twilioClient);
 
-  request.post({
-    url: `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`,
-    json: true,
-    'auth': {
-      'user': ACCOUNT_SID,
-      'pass': AUTH_TOKEN
-    },
-    form: {
-      From: SEND_SMS_FROM,
-      To: requestBody.DestPhoneNumber,
-      Body: requestBody.Message
-    }
-  })
-  .then((data) => {
-    console.log(`Message successfully sent to ${SEND_SMS_TO}`);
-    callback(null, {
-      statusCode: 201,
-      body: JSON.stringify({
-        To: requestBody.DestPhoneNumber,
-        Message: requestBody.Message
-      }),
-      headers: {
-          'Access-Control-Allow-Origin': '*',
-      },
+  const response = {
+    headers: { 'Access-Control-Allow-Origin': '*' }, // CORS requirement
+    statusCode: 200,
+  };
+
+  Object.assign(event, { from: process.env.TWILIO_PHONE_NUMBER });
+
+  messenger.send(event)
+  .then((message) => {
+    // text message sent! ✅
+    console.log(`message ${message.body}`);
+    console.log(`date_created: ${message.date_created}`);
+    response.body = JSON.stringify({
+      message: 'Text message successfully sent!',
+      data: message,
     });
+    callback(null, response);
   })
-  .catch((err) => {
-    console.error(err);
-    errorResponse(err.message, context.awsRequestId, callback)
-    return callback(err);
+  .catch((error) => {
+    response.statusCode = error.status;
+    response.body = JSON.stringify({
+      message: error.message,
+      error: error, // eslint-disable-line
+    });
+    callback(null, response);
   });
 };
-
-
-function errorResponse(errorMessage, awsRequestId, callback) {
-  callback(null, {
-    statusCode: 500,
-    body: JSON.stringify({
-      Error: errorMessage,
-      Reference: awsRequestId,
-    }),
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-    },
-  });
-}
