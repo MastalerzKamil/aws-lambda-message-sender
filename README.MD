@@ -1,6 +1,9 @@
-# Commands
-Taken from (here)[https://github.com/serverless/serverless]
+# Getting Started
+1. Remember abount changing phone number in `event.json` file
+2. Use `aws-lambda-message-sender % serverless invoke local -f sendText -l --path event.jso` to invoke function locally with parameters from `event.json`
+3. Use `serverless deploy function -f sendText` to deploy function with `sendText` function name
+4. Use `serverless remove` to remove lamda function from cloud
+# Sources
 
-- `serverless invoke local -f hello -l --data '{"Body": { "Message": "Your message", "DestPhoneNumber": "+48532390966"}}'` - invoke function with parameters to send message
-- `serverless deploy function -f hello` - Deploy function with `hello` function name
-- `serverless remove`
+- [Serverless Github](https://github.com/serverless/serverless)
+- [Twilio send messages example](https://github.com/serverless/examples/tree/master/aws-node-twilio-send-text-message)
