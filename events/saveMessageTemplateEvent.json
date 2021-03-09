@@ -1,0 +1,5 @@
+{
+  "body": {
+    "template": "Hello ${username} Here is a joke for Today \n\n${joke}"
+  }
+}
