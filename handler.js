@@ -130,7 +130,7 @@ function saveUser(userId, username, phoneNumber) {
 
 function saveTemplate(templateId, template) {
   return ddb.put({
-    TableName: 'message-templates-dev',
+    TableName: 'message-templates-table-dev',
     Item: {
       TemplateId: templateId,
       Template: template,
