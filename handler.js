@@ -1,5 +1,11 @@
 const randomBytes = require('crypto').randomBytes;
+const PNF = require('google-libphonenumber').PhoneNumberFormat;
+const phoneUtil = require('google-libphonenumber').PhoneNumberUtil.getInstance();
 const Messenger = require('./messenger.js');
+
+const USER_TABLE = 'users-table-dev';
+const TEMPLATES_TABLE = 'message-templates-table-dev';
+const DEFAULT_TOPIC = 'default';
 
 const AWS = require('aws-sdk');
 
@@ -43,17 +49,17 @@ module.exports.sendText = (event, context, callback) => {
   .catch((err) => {
     console.error(err);
     errorResponse(err.message, context.awsRequestId, callback);
+    return new Error(`Error adding user: ${JSON.stringify(err)}`);
   });
 };
 
 module.exports.addTemplate = (event, context, callback) => {
-  const templateId = toUrlString(randomBytes(16));
-  saveTemplate(templateId, event.body.template)
+  saveTemplate(DEFAULT_TOPIC, event.body.template)
   .then(() => {
     callback(null, {
       statusCode: 201,
       body: JSON.stringify({
-        TemplateId: templateId,
+        Topic: DEFAULT_TOPIC,
         Template: event.body.template
       }),
       headers: {
@@ -68,14 +74,13 @@ module.exports.addTemplate = (event, context, callback) => {
 };
 
 module.exports.addUser = (event, context, callback) => {
-  const userId = toUrlString(randomBytes(16));
 
-  saveUser(userId, event.body.username, event.body.phoneNumber)
+  saveUser(event.body.username, event.body.phoneNumber)
   .then(() => {
     callback(null, {
       statusCode: 201,
       body: JSON.stringify({
-        UserId: userId,
+        Username: event.body.username,
         PhoneNumber: event.body.phoneNumber
       }),
       headers: {
@@ -90,6 +95,26 @@ module.exports.addUser = (event, context, callback) => {
 };
 
 module.exports.triggerJokes = (event, context, callback) => {
+  const getPhoneNumbersParams = {
+    'RequestItems': {
+      'users-table-dev': {
+        'Keys': [
+          {
+            'CountryCode': {'S': '+48'}
+          }
+        ]
+      }
+    }
+  };
+
+  ddb.batchGet(getPhoneNumbersParams, (err, data) => {
+    if(err) {
+      console.error(err);
+      return new Error(`Unable to fetch PhoneNumbers`)
+    }
+    console.log(data)
+  });
+
   const fakePhoneNumber = ['+48532390966', '+48532390966'];
   giveMeAJoke.getRandomCNJoke((joke) => {
     fakePhoneNumber.forEach(phoneNumber => {
@@ -116,23 +141,25 @@ module.exports.triggerJokes = (event, context, callback) => {
   });
 };
 
-function saveUser(userId, username, phoneNumber) {
+function saveUser(username, phoneNumber) {
+  const number = phoneUtil.parseAndKeepRawInput(phoneNumber);
+  const countryCode = `+${number.getCountryCode()}`;
   return ddb.put({
-      TableName: 'users-table-dev',
+      TableName: USER_TABLE,
       Item: {
-          UserId: userId,
+          CountryCode: countryCode,
           User: username,
-          PhoneNumber: phoneNumber,
+          PhoneNumber: phoneUtil.format(number, PNF.E164),
           RequestTime: new Date().toISOString(),
       },
   }).promise();
 }
 
-function saveTemplate(templateId, template) {
+function saveTemplate(topic, template) {
   return ddb.put({
-    TableName: 'message-templates-table-dev',
+    TableName: TEMPLATES_TABLE,
     Item: {
-      TemplateId: templateId,
+      Topic: topic,
       Template: template,
     },
   }).promise();
@@ -156,4 +183,8 @@ function errorResponse(errorMessage, awsRequestId, callback) {
       'Access-Control-Allow-Origin': '*',
     },
   });
+}
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
