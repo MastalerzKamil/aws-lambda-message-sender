@@ -96,11 +96,11 @@ module.exports.addUser = (event, context, callback) => {
 
 module.exports.triggerJokes = (event, context, callback) => {
   const getPhoneNumbersParams = {
-    'RequestItems': {
+    RequestItems: {
       'users-table-dev': {
-        'Keys': [
+        Keys: [
           {
-            'CountryCode': {'S': '+48'}
+            'CountryCode': '+48',
           }
         ]
       }
@@ -110,9 +110,9 @@ module.exports.triggerJokes = (event, context, callback) => {
   ddb.batchGet(getPhoneNumbersParams, (err, data) => {
     if(err) {
       console.error(err);
-      return new Error(`Unable to fetch PhoneNumbers`)
+      return new Error(`Unable to fetch PhoneNumbers: ${err}`)
     }
-    console.log(data)
+    console.log(JSON.stringify(data.Responses[USER_TABLE]))
   });
 
   const fakePhoneNumber = ['+48532390966', '+48532390966'];
