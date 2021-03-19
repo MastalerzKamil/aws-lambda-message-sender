@@ -112,33 +112,34 @@ module.exports.triggerJokes = (event, context, callback) => {
       console.error(err);
       return new Error(`Unable to fetch PhoneNumbers: ${err}`)
     }
+
+    const queryResult = data.Responses[USER_TABLE];
     console.log(JSON.stringify(data.Responses[USER_TABLE]))
+    giveMeAJoke.getRandomCNJoke((joke) => {
+      queryResult.forEach(record => {
+        const params = {
+          FunctionName: 'aws-lambda-message-sender-dev-sendText',
+          InvocationType: 'RequestResponse',
+          Payload: JSON.stringify({
+            body: {
+              to: record.PhoneNumber,
+              message: joke
+            }
+          }),
+        };
+        return lambda.invoke(params, (error, data) => {
+          if (error) {
+            console.error(JSON.stringify(error));
+            return new Error(`Error printing messages: ${JSON.stringify(error)}`);
+          } else if (data) {
+            console.log(data);
+          }
+        })
+      });
+    });
   });
 
   const fakePhoneNumber = ['+48532390966', '+48532390966'];
-  giveMeAJoke.getRandomCNJoke((joke) => {
-    fakePhoneNumber.forEach(phoneNumber => {
-      const params = {
-        FunctionName: 'aws-lambda-message-sender-dev-sendText',
-        InvocationType: 'RequestResponse',
-        Payload: JSON.stringify({
-          body: {
-            to: phoneNumber,
-            message: joke
-          }
-        }),
-      };
-
-      return lambda.invoke(params, (error, data) => {
-        if (error) {
-          console.error(JSON.stringify(error));
-          return new Error(`Error printing messages: ${JSON.stringify(error)}`);
-        } else if (data) {
-          console.log(data);
-        }
-      })
-    });
-  });
 };
 
 function saveUser(username, phoneNumber) {
