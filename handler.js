@@ -54,12 +54,14 @@ module.exports.sendText = (event, context, callback) => {
 };
 
 module.exports.addTemplate = (event, context, callback) => {
-  saveTemplate(DEFAULT_TOPIC, event.body.template)
+  const rideId = toUrlString(randomBytes(16));
+  saveTemplate(DEFAULT_TOPIC, rideId, event.body.template)
   .then(() => {
     callback(null, {
       statusCode: 201,
       body: JSON.stringify({
         Topic: DEFAULT_TOPIC,
+        RideId: rideId,
         Template: event.body.template
       }),
       headers: {
@@ -94,52 +96,69 @@ module.exports.addUser = (event, context, callback) => {
   });
 };
 
-module.exports.triggerJokes = (event, context, callback) => {
-  const getPhoneNumbersParams = {
+module.exports.triggerJokes = async (event, context, callback) => {
+  const usersParams = {
     RequestItems: {
       'users-table-dev': {
         Keys: [
           {
             'CountryCode': '+48',
+            'PhoneNumber': "+48532390966"
           }
-        ]
-      }
+        ],
+      },
+      'message-templates-table-dev': {
+        Keys: [
+          {
+            'Topic': DEFAULT_TOPIC,
+          }
+        ],
+      },
     }
   };
 
-  ddb.batchGet(getPhoneNumbersParams, (err, data) => {
-    if(err) {
-      console.error(err);
-      return new Error(`Unable to fetch PhoneNumbers: ${err}`)
-    }
+  const foundRecords = await ddb.batchGet(usersParams).promise();
 
-    const queryResult = data.Responses[USER_TABLE];
-    console.log(JSON.stringify(data.Responses[USER_TABLE]))
-    giveMeAJoke.getRandomCNJoke((joke) => {
-      queryResult.forEach(record => {
-        const params = {
-          FunctionName: 'aws-lambda-message-sender-dev-sendText',
-          InvocationType: 'RequestResponse',
-          Payload: JSON.stringify({
-            body: {
-              to: record.PhoneNumber,
-              message: joke
-            }
-          }),
-        };
-        return lambda.invoke(params, (error, data) => {
-          if (error) {
-            console.error(JSON.stringify(error));
-            return new Error(`Error printing messages: ${JSON.stringify(error)}`);
-          } else if (data) {
-            console.log(data);
-          }
-        })
+  const users = foundRecords.Responses[USER_TABLE];
+  const templates = foundRecords.Responses[TEMPLATES_TABLE];
+  console.log(users);
+  console.log(templates)
+  // const randomTemplate = queriedTamplates[Math.floor(Math.random() * queriedTamplates.length)]
+  const randomTemplate = 'Hello ${username} Here is a joke for Today: ${joke}'
+  String.prototype.interpolate = function(params) {
+    const names = Object.keys(params);
+    const vals = Object.values(params);
+    return new Function(...names, `return \`${this}\`;`)(...vals);
+  }
+
+  giveMeAJoke.getRandomCNJoke((joke) => {
+    users.forEach(record => {
+      const result = randomTemplate.interpolate({
+        username: record.User,
+        joke: joke,
       });
+
+      console.log(result);
+      const params = {
+        FunctionName: 'aws-lambda-message-sender-dev-sendText',
+        InvocationType: 'RequestResponse',
+        Payload: JSON.stringify({
+          body: {
+            to: record.PhoneNumber,
+            message: result
+          }
+        }),
+      };
+      return lambda.invoke(params, (error, data) => {
+        if (error) {
+          console.error(JSON.stringify(error));
+          return new Error(`Error printing messages: ${JSON.stringify(error)}`);
+        } else if (data) {
+          console.log(data);
+        }
+      })
     });
   });
-
-  const fakePhoneNumber = ['+48532390966', '+48532390966'];
 };
 
 function saveUser(username, phoneNumber) {
@@ -156,11 +175,12 @@ function saveUser(username, phoneNumber) {
   }).promise();
 }
 
-function saveTemplate(topic, template) {
+function saveTemplate(topic, rideId, template) {
   return ddb.put({
     TableName: TEMPLATES_TABLE,
     Item: {
       Topic: topic,
+      RideId: rideId,
       Template: template,
     },
   }).promise();
