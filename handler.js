@@ -126,16 +126,11 @@ module.exports.triggerJokes = async (event, context, callback) => {
   const templates = foundTemplates.Responses[TEMPLATES_TABLE];
 
   giveMeAJoke.getRandomCNJoke((joke) => {
-    console.log(users);
-    console.log(templates);
     users.forEach(record => {
-
-      console.log(record)
       const parsedTemplate = formatString(templates[0].Template, {
         username: record.User,
         joke,
       });
-      console.log(parsedTemplate);
       const params = {
         FunctionName: 'aws-lambda-message-sender-dev-sendText',
         InvocationType: 'RequestResponse',
