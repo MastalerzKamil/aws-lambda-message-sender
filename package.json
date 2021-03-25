@@ -10,6 +10,7 @@
     "google-libphonenumber": "^3.2.18",
     "request": "^2.88.2",
     "request-promise-native": "^1.0.9",
+    "string-template": "^1.0.0",
     "twilio": "^3.57.0"
   }
 }

@@ -2,6 +2,7 @@ const randomBytes = require('crypto').randomBytes;
 const PNF = require('google-libphonenumber').PhoneNumberFormat;
 const phoneUtil = require('google-libphonenumber').PhoneNumberUtil.getInstance();
 const Messenger = require('./messenger.js');
+const formatString = require("string-template")
 
 const USER_TABLE = 'users-table-dev';
 const TEMPLATES_TABLE = 'message-templates-table-dev';
@@ -121,23 +122,25 @@ module.exports.triggerJokes = async (event, context, callback) => {
 
   const users = foundRecords.Responses[USER_TABLE];
   const templates = foundRecords.Responses[TEMPLATES_TABLE];
-  // const randomTemplate = queriedTamplates[Math.floor(Math.random() * queriedTamplates.length)]
 
   giveMeAJoke.getRandomCNJoke((joke) => {
     console.log(users);
     console.log(templates);
-    const mockedPhoneNumbers = ['+48532390966'];
     users.forEach(record => {
+
       console.log(record)
-      const randomTemplate = `Hello ${record.User} Here is a joke for Today: ${joke}`;
-      console.log(randomTemplate);
+      const parsedTemplate = formatString(templates[0].Template, {
+        username: record.User,
+        joke,
+      });
+      console.log(parsedTemplate);
       const params = {
         FunctionName: 'aws-lambda-message-sender-dev-sendText',
         InvocationType: 'RequestResponse',
         Payload: JSON.stringify({
           body: {
             to: record.PhoneNumber,
-            message: randomTemplate
+            message: parsedTemplate
           }
         }),
       };
