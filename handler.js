@@ -121,31 +121,23 @@ module.exports.triggerJokes = async (event, context, callback) => {
 
   const users = foundRecords.Responses[USER_TABLE];
   const templates = foundRecords.Responses[TEMPLATES_TABLE];
-  console.log(users);
-  console.log(templates)
   // const randomTemplate = queriedTamplates[Math.floor(Math.random() * queriedTamplates.length)]
-  const randomTemplate = 'Hello ${username} Here is a joke for Today: ${joke}'
-  String.prototype.interpolate = function(params) {
-    const names = Object.keys(params);
-    const vals = Object.values(params);
-    return new Function(...names, `return \`${this}\`;`)(...vals);
-  }
 
   giveMeAJoke.getRandomCNJoke((joke) => {
+    console.log(users);
+    console.log(templates);
+    const mockedPhoneNumbers = ['+48532390966'];
     users.forEach(record => {
-      const result = randomTemplate.interpolate({
-        username: record.User,
-        joke: joke,
-      });
-
-      console.log(result);
+      console.log(record)
+      const randomTemplate = `Hello ${record.User} Here is a joke for Today: ${joke}`;
+      console.log(randomTemplate);
       const params = {
         FunctionName: 'aws-lambda-message-sender-dev-sendText',
         InvocationType: 'RequestResponse',
         Payload: JSON.stringify({
           body: {
             to: record.PhoneNumber,
-            message: result
+            message: randomTemplate
           }
         }),
       };
