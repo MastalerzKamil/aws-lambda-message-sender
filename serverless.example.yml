@@ -22,6 +22,8 @@ frameworkVersion: '2'
 provider:
   name: aws
   region: eu-central-1
+  memorySize: 512
+  timeout: 10
   stage: dev
   iam:
     role:
@@ -38,30 +40,19 @@ provider:
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
+            - dynamodb:BatchGetItem
           Resource:
-            Fn::GetAtt:
-              - UsersDynamoDBTable
-              - Arn
-        - Effect: Allow
-          Action:
-            - dynamodb:Query
-            - dynamodb:Scan
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-          Resource:
-            Fn::GetAtt:
-              - MessageTemplatesDynamoDBTable
-              - Arn
+            # "arn:aws:dynamodb:eu-central-1:*:*" # Access to all tables in eu-central-1
+            - { "Fn::GetAtt": ["MessageTemplatesDynamoDBTable", "Arn"] }
+            - { "Fn::GetAtt": ["UsersDynamoDBTable", "Arn"] } #you will also see the logical IDs below where they are provisioned
   runtime: nodejs12.x
   apiGateway:
     shouldStartNameWithService: true
-  lambdaHashingVersion: <HashLambda>
+  lambdaHashingVersion: 20201221
   environment:
-    TWILIO_ACCOUNT_SID: <Twilio account SID>
-    TWILIO_AUTH_TOKEN: <Twilio Auth Token>
-    TWILIO_PHONE_NUMBER: "<Twilio Phone number>"
+    TWILIO_ACCOUNT_SID: <TWILIO_ACCOUNT_SID>
+    TWILIO_AUTH_TOKEN: <TWILIO_AUTH_TOKEN>
+    TWILIO_PHONE_NUMBER: "<TWILIO_PHONE_NUMBER>"
     USERS_TABLE: ${self:custom.usersTable}
     MESSAGE_TEMPLATES_TABLE: ${self:custom.messageTemplatesTable}
 functions:
@@ -75,6 +66,8 @@ functions:
           cors: true
   addTemplate:
     handler: handler.addTemplate
+    environment:
+
     events:
       - http:
           path: /api/addTemplate
@@ -89,6 +82,10 @@ functions:
           method: get
           integration: lambda
           cors: true
+      - schedule:
+          name: trigger-jokes-dev
+          enabled: false
+          rate: rate(1 minutes)
   addUser:
     handler: handler.addUser
     events:
@@ -104,28 +101,34 @@ resources:
       Properties:
         AttributeDefinitions:
           -
-            AttributeName: UserId
+            AttributeName: CountryCode
+            AttributeType: S
+          -
+            AttributeName: PhoneNumber
             AttributeType: S
         KeySchema:
           -
-            AttributeName: UserId
+            AttributeName: CountryCode
             KeyType: HASH
+          -
+            AttributeName: PhoneNumber
+            KeyType: RANGE
         ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
+          ReadCapacityUnits: 10
+          WriteCapacityUnits: 10
         TableName: ${self:custom.usersTable}
     MessageTemplatesDynamoDBTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:
         AttributeDefinitions:
           -
-            AttributeName: TemplateId
+            AttributeName: Topic
             AttributeType: S
         KeySchema:
           -
-            AttributeName: TemplateId
+            AttributeName: Topic
             KeyType: HASH
         ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
+          ReadCapacityUnits: 10
+          WriteCapacityUnits: 10
         TableName: ${self:custom.messageTemplatesTable}

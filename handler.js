@@ -98,16 +98,8 @@ module.exports.addUser = (event, context, callback) => {
 };
 
 module.exports.triggerJokes = async (event, context, callback) => {
-  const usersParams = {
+  const templatesParams = {
     RequestItems: {
-      'users-table-dev': {
-        Keys: [
-          {
-            'CountryCode': '+48',
-            'PhoneNumber': "+48532390966"
-          }
-        ],
-      },
       'message-templates-table-dev': {
         Keys: [
           {
@@ -118,10 +110,20 @@ module.exports.triggerJokes = async (event, context, callback) => {
     }
   };
 
-  const foundRecords = await ddb.batchGet(usersParams).promise();
+  const usersQueryParams = {
+    TableName: USER_TABLE,
+    KeyConditionExpression: "CountryCode = :countryCode",
+    ExpressionAttributeValues: {
+      ":countryCode": "+48",
+    }
+  }
 
-  const users = foundRecords.Responses[USER_TABLE];
-  const templates = foundRecords.Responses[TEMPLATES_TABLE];
+  const foundTemplates = await ddb.batchGet(templatesParams).promise();
+  const foundUsers = await ddb.query(usersQueryParams).promise();
+
+  // const users = foundTemplates.Responses[USER_TABLE];
+  const users = foundUsers.Items;
+  const templates = foundTemplates.Responses[TEMPLATES_TABLE];
 
   giveMeAJoke.getRandomCNJoke((joke) => {
     console.log(users);
@@ -144,7 +146,7 @@ module.exports.triggerJokes = async (event, context, callback) => {
           }
         }),
       };
-      return lambda.invoke(params, (error, data) => {
+      lambda.invoke(params, (error, data) => {
         if (error) {
           console.error(JSON.stringify(error));
           return new Error(`Error printing messages: ${JSON.stringify(error)}`);
